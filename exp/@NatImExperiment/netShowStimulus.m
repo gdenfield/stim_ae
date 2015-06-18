@@ -14,7 +14,7 @@ refreshRate = get(e,'refreshRate');
 nIm = getParam(e,'imPerTrial');                                 % number of images to be shown per trial; the total image number must be divisible by this
 imTime = getParam(e,'imTime');                                  % duration of each image presentation in milliseconds
 blankTime = getParam(e,'blankTime');                            % duration between each image presentation in millseconds
-bgColor = getParam(e,'bgColor');                                % stimulus background color: RGB with each in range [0, 255]
+bgColor = getParam(e, 'bgColor');                               % stimulus background color: RGB with each in range [0, 255]
 stimTime = nIm * (imTime + blankTime);                          % total duration of the stimulus in milliseconds
 postStimTime = getParam(e, 'postStimulusTime');                 % duration between stimuli presentation in milliseconds
 
@@ -32,7 +32,7 @@ cond = getParam(e, 'condition');
 % get sequence of substimuli
 imNums = conditions(cond).imNums;
 % get sequence of image condition indices
-statIdx = conditions(cond).statIndex;
+statIdx = conditions(cond).statIdx;
 
 %return function call
 tcpReturnFunctionCall(e, int32(0), params, 'netShowStimulus');
@@ -80,6 +80,7 @@ while cIm <= nIm
         blank = true;
         
         e = swap(e);
+        t = getLastSwap(e);
         
         cIm = cIm + 1;
         if cIm == nIm + 1

@@ -1,4 +1,4 @@
-function [e,retInt32,retStruct,returned] = netStartSession(e,params)
+function [e,retInt32,retStruct,returned] = netStartSession(e, params)
 % Configures and loads alpha map and all textures to be used throughout the
 % experiment
 %
@@ -10,12 +10,10 @@ bgColor = params.bgColor;                           % stimulus background color:
 diskSize = params.diskSize;                         % stimulus window diameter
 fadeFactor = params.fadeFactor;                     % edge falloff for window, the edge falls off from diskSize to diskSize*fadeFactor with cosine fall off
 
-imgPathPtrn = params.imagePathPattern;         % path pattern to the directory with image sets (.mat). 
+imgPathPtrn = params.imgPathPtrn;              % path pattern to the directory with image sets (.mat). 
                                                     % Note that this should be a pattern with %d to be substituted
 
 nTex = params.texFileNumber;                        % texture .mat file number to be used for the session
-nIm = params.imPerTrial;                            % number of images to be shown per trial; the total image number must be divisible by this
-nGS = params.seqGroupsPerSession;                   % no. of distinct sequence Groups per session (each group has 3 sequences)
 scFactor = params.texScaleFactor;                   % scaling factor for the texture - has to be an integer
 
 % nFirst = params.firstTexNumber; %first texture to pick from texture struc.
@@ -51,15 +49,17 @@ Screen('BlendFunction',win,GL_SRC_ALPHA,GL_ONE_MINUS_SRC_ALPHA);
 
 %load texture structure
 
+%imgPathPtrn='z:/users/eywalker/DeepLayer/LeonTextures%d.mat';
 file = sprintf(imgPathPtrn, nTex);
-[~, fname, ext] = fileparts(file);
-fname = [fname ext];
+% [~, fname, ext] = fileparts(file);
+% fname = [fname ext];
 
 f = load(file);
-params.sourcefile = fname;
+params.sourcefile = file;
 
 %create textures
 N = length(f.textures); % total number of images
+params.totalImages = N;
 fields = {'original', 'conv1', 'conv2', 'conv3', 'conv4'};
 params.fields = fields;
 

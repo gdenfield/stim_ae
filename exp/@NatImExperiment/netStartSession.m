@@ -1,23 +1,37 @@
 function [e,retInt32,retStruct,returned] = netStartSession(e,params)
+% Configures and loads alpha map and all textures to be used throughout the
+% experiment
+%
+% authors: eywalker, leon
 
+% load experiment params
+location = params.stimulusLocation;                 % center of the stimulus
+bgColor = params.bgColor;                           % stimulus background color: RGB with each in range [0, 255]
+diskSize = params.diskSize;                         % stimulus window diameter
+fadeFactor = params.fadeFactor;                     % edge falloff for window, the edge falls off from diskSize to diskSize*fadeFactor with cosine fall off
 
+imgPathPtrn = params.imagePathPattern;         % path pattern to the directory with image sets (.mat). 
+                                                    % Note that this should be a pattern with %d to be substituted
 
+nTex = params.texFileNumber;                        % texture .mat file number to be used for the session
+nIm = params.imPerTrial;                            % number of images to be shown per trial; the total image number must be divisible by this
+nGS = params.seqGroupsPerSession;                   % no. of distinct sequence Groups per session (each group has 3 sequences)
+scFactor = params.texScaleFactor;                   % scaling factor for the texture - has to be an integer
+
+% nFirst = params.firstTexNumber; %first texture to pick from texture struc.
+% nLast = nFirst + nIm * nGS - 1; %last texture to pick from texture struc.
+% params.lastTexNumber = nLast;
 
 % create alpha blend mask
 win = get(e,'win');
 rect = Screen('Rect',win);
 halfWidth = ceil(diff(rect([1 3])) / 2);
 halfHeight = ceil(diff(rect([2 4])) / 2);
-location = params.stimulusLocation;
-bgColor = params.bgColor;
-diskSize = params.diskSize;
-fadeFactor = params.fadeFactor;
-
 
 [X,Y] = meshgrid((-halfWidth:halfWidth-1) - location(1), ...
              (-halfHeight:halfHeight-1) - location(2));
 
-alphaLum = repmat(permute(bgColor,[2 3 1]), ...
+alphaLum = repmat(shiftdim(bgColor, -2), ...
                   2*halfHeight,2*halfWidth);
 
 % create blending map with cosine fade out
@@ -26,9 +40,7 @@ disk = (normXY < diskSize/2);
 blend = normXY < fadeFactor*diskSize/2 & normXY >= diskSize/2;
 mv = fadeFactor*diskSize/2 - diskSize/2;
 blend = (0.5*cos((normXY-diskSize/2)*pi/mv)+.5).*blend;
-
 alphaBlend = 255 * (1-blend-disk);
-
 e.alphaMask = Screen('MakeTexture',win,cat(3,alphaLum,alphaBlend));
 
 % Enable alpha blending with proper blend-function. We need it
@@ -36,42 +48,43 @@ e.alphaMask = Screen('MakeTexture',win,cat(3,alphaLum,alphaBlend));
 win = get(e,'win');
 Screen('BlendFunction',win,GL_SRC_ALPHA,GL_ONE_MINUS_SRC_ALPHA);
 
-nTex = params.texFileNumber; %no. of texture structure
-nIm = params.imPerTrial; % images per trial
-nGS = params.seqGroupsPerSession;%no. of distinct sequence Groups per session (each group has 3 sequences)
-scFactor = params.imSize; 
-
-nFirst = params.firstTexNumber; %first texture to pick from texture struc.
-nLast = nFirst + nIm * nGS - 1; %last texture to pick from texture struc.
-params.lastTexNumber = nLast;
-
 
 %load texture structure
 
-file=sprintf('/Volumes/lab/users/leon/leon_textures/NatImTextures_%d.mat',nTex);
+file = sprintf(imgPathPtrn, nTex);
+[~, fname, ext] = fileparts(file);
+fname = [fname ext];
+
 f = load(file);
-params.sourcefile = sprintf('NatImTextures_%d.mat',nTex); 
+params.sourcefile = fname;
 
 %create textures
-e.textures = zeros(3,nGS*nIm);
+N = length(f.textures); % total number of images
+fields = {'original', 'conv1', 'conv2', 'conv3', 'conv4'};
+params.fields = fields;
+
+e.textures = zeros(length(fields), N);
 sm = ones(scFactor); %for scaling the pixels by scFactor
-for i = 1:(nLast - nFirst + 1)
-    j = i + nFirst - 1;
-    params.source{i} = f.textures(j).source.name;
-    e.textures(1,i)= Screen('MakeTexture',win,kron(double(f.textures(j).nat),sm)); 
-    e.textures(2,i)= Screen('MakeTexture',win,kron(double(f.textures(j).phs),sm));
-    e.textures(3,i)= Screen('MakeTexture',win,kron(double(f.textures(j).whn),sm));
-   % e.textures(4,i)= Screen('MakeTexture',win,kron(double(f.textures(j).org),sm));
+
+params.imgnum = [f.textures.imgnum];
+
+% for each image and for each filtered version, generate texture and store
+% the texture reference number
+for i = 1:N
+    for j = 1:length(fields)
+        e.textures(j,i) = Screen('MakeTexture', win, kron(double(f.textures(i).(fields{j})), sm));
+    end
 end
 
 
 % define stimulus position
-e.textureSize = scFactor*size(f.textures(nFirst).nat,1);
+e.textureSize = scFactor*size(f.textures(1).(fields{1}), 1); % this assumes a square texture...
 centerX = mean(rect([1 3])) + location(1);
 centerY = mean(rect([2 4])) + location(2);
+% compute bounding box for the texture to be drawn in
 e.destRect = [-e.textureSize -e.textureSize e.textureSize e.textureSize] / 2 ...
         + [centerX centerY centerX centerY];
     
 
 % initialize parent
-[e,retInt32,retStruct,returned] = initSession(e,params);
+[e, retInt32, retStruct, returned] = initSession(e, params);
